@@ -6,7 +6,7 @@ library(rlang)
 library(readxl)
 
 #make sure to update path to relevant xlsx file
-complaint_data <- read_excel("~/Desktop/MEHKO/mehko_data.xlsx")
+complaint_data <- read_excel("~/Desktop/MEHKO/mehko_data_geo.xlsx")
 
 #loading in RUCA data
 ruca_data <- read_csv("~/Desktop/MEHKO/RUCA2010zipcode.csv")
@@ -76,7 +76,10 @@ complaint_data_with_nces_locale <- complaint_data_with_nces_locale %>%
     LOCALE == 43 ~ "Rural: Remote",
     TRUE ~ "Unknown"
   ))
-
+complaint_data_with_nces_locale_mehkos <- complaint_data_with_nces_locale %>%
+  filter(!is.na(mehko_id))
+table(complaint_data_with_nces_locale_mehkos$locale_description)
+  
 #loading in opportunity zone data
 opp_zones <- st_read("~/Desktop/MEHKO/8764oz.shp")
 st_crs(opp_zones)
