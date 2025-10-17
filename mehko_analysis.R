@@ -1,3 +1,4 @@
+#load packages
 library(tidygeocoder)
 library(tidyverse)
 library(tigris)
@@ -5,8 +6,15 @@ library(sf)
 library(rlang)
 library(readxl)
 
+#setwd "mehko-data"
 #make sure to update path to relevant xlsx file
-complaint_data <- read_excel("~/Desktop/MEHKO/mehko_data_geo.xlsx")
+complaint_data <- read_excel("mehko_data.xlsx")
+
+
+
+
+
+
 
 #loading in RUCA data
 ruca_data <- read_csv("~/Desktop/MEHKO/RUCA2010zipcode.csv")
