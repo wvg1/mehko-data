@@ -8,13 +8,102 @@ library(readxl)
 
 #setwd "mehko-data"
 #make sure to update path to relevant xlsx file
-complaint_data <- read_excel("mehko_data.xlsx")
+complaint_data <- read_excel("data/mehko_data.xlsx")
 
+### total unique complaints for mehko addresses ###
 
+#sum complaints
+total_complaints <- complaint_data %>%
+  summarise(
+    unique_code_pre    = sum(unique_code_pre,    na.rm = TRUE),
+    unique_code_post   = sum(unique_code_post,   na.rm = TRUE),
+    unique_health_pre  = sum(unique_health_pre,  na.rm = TRUE),
+    unique_health_post = sum(unique_health_post, na.rm = TRUE)
+  )
 
+print(total_complaints, width = Inf)
 
+total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
+cat("Total sum of the four columns:", total, "\n")
 
+#sum complaints for mehkos
+mehko_complaints <- complaint_data %>%
+  filter(permit_year != "NA")
 
+sum_mehko_complaints <- mehko_complaints %>%
+  summarise(
+    unique_code_pre    = sum(unique_code_pre,    na.rm = TRUE),
+    unique_code_post   = sum(unique_code_post,   na.rm = TRUE),
+    unique_health_pre  = sum(unique_health_pre,  na.rm = TRUE),
+    unique_health_post = sum(unique_health_post, na.rm = TRUE)
+  )
+
+total <- sum_mehko_complaints %>% unlist(use.names = FALSE) %>% sum()
+cat("Total sum of the four columns:", total, "\n")
+
+#sum complaints for never permitted businesses
+unpermitted_complaints <- complaint_data %>%
+  filter(permit_year == "NA")
+
+sum_unpermitted_complaints <- unpermitted_complaints %>%
+  summarise(
+    unique_code_pre    = sum(unique_code_pre,    na.rm = TRUE),
+    unique_code_post   = sum(unique_code_post,   na.rm = TRUE),
+    unique_health_pre  = sum(unique_health_pre,  na.rm = TRUE),
+    unique_health_post = sum(unique_health_post, na.rm = TRUE)
+  )
+
+total <- sum_unpermitted_complaints %>% unlist(use.names = FALSE) %>% sum()
+cat("Total sum of the four columns:", total, "\n")
+
+#number of MEHKO complaints with no substantive issues identified
+#columns that must be 0
+cols_zero <- c(
+  "post_code_traffic",
+  "post_code_traffic_actions",
+  "post_code_nuisance",
+  "post_code_nuisance_actions",
+  "post_code_noise",
+  "post_code_noise_actions",
+  "post_code_alcohol",
+  "post_code_alcohol_actions",
+  "post_code_trash",
+  "post_code_trash_actions",
+  "post_code_building",
+  "post_code_building_actions",
+  "post_code_foodborne",
+  "post_code_foodborne_actions",
+  "post_health_traffic",
+  "post_health_traffic_actions",
+  "post_health_nuisance",
+  "post_health_nuisance_actions",
+  "post_health_noise",
+  "post_health_noise_actions",
+  "post_health_alcohol",
+  "post_health_alcohol_actions",
+  "post_health_trash",
+  "post_health_trash_actions",
+  "post_health_building",
+  "post_health_building_actions",
+  "post_health_foodborne",
+  "post_health_foodborne_actions"
+)
+
+#ensure the key columns exist in the data
+required_cols <- c("post_code_admin", "post_health_admin", cols_zero)
+missing_cols <- setdiff(required_cols, names(mehko_complaints))
+if (length(missing_cols) > 0) stop("These required columns are missing: ", paste(missing_cols, collapse = ", "))
+
+#find matching rows (treat NA as 0)
+matches <- mehko_complaints %>%
+  mutate(across(all_of(required_cols), ~ replace_na(.x, 0))) %>%
+  filter((post_code_admin >= 1 | post_health_admin >= 1)) %>%
+  filter(if_all(all_of(cols_zero), ~ . == 0))
+
+#results
+count_matches <- nrow(matches)
+cat("Number of rows matching criteria:", count_matches, "\n")
+  
 
 #loading in RUCA data
 ruca_data <- read_csv("~/Desktop/MEHKO/RUCA2010zipcode.csv")
