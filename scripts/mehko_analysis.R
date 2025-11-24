@@ -219,6 +219,46 @@ unpermitted_complaints %>%
   filter(if_any(all_of(action_cols), ~ !is.na(.) & . != 0)) %>%
   tally(name = "rows_any_action_nonzero")
 
+#breaking it down further
+#percentage of complaints by category (pre-permit)
+pre_code_categories <- c("pre_code_admin", "pre_code_traffic", "pre_code_nuisance", 
+                         "pre_code_noise", "pre_code_alcohol", "pre_code_trash", 
+                         "pre_code_building", "pre_code_foodborne")
+
+pre_health_categories <- c("pre_health_admin", "pre_health_traffic", "pre_health_nuisance", 
+                           "pre_health_noise", "pre_health_alcohol", "pre_health_trash", 
+                           "pre_health_building", "pre_health_foodborne")
+
+#breakdown of pre-permit code enforcement complaints
+code_totals <- complaint_data %>%
+  select(all_of(pre_code_categories)) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  pivot_longer(cols = everything(), names_to = "category", values_to = "count") %>%
+  mutate(
+    category = str_remove(category, "pre_code_"),
+    total = sum(count),
+    percent = (count / total) * 100
+  ) %>%
+  arrange(desc(percent))
+
+print(code_totals, n = Inf)
+cat("\n")
+
+#breakdown of pre-permit code enforcement complaints
+health_totals <- complaint_data %>%
+  select(all_of(pre_health_categories)) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  pivot_longer(cols = everything(), names_to = "category", values_to = "count") %>%
+  mutate(
+    category = str_remove(category, "pre_health_"),
+    total = sum(count),
+    percent = (count / total) * 100
+  ) %>%
+  arrange(desc(percent))
+
+print(health_totals, n = Inf)
+cat("\n")
+
 
 
 
