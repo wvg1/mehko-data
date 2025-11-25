@@ -219,48 +219,140 @@ unpermitted_complaints %>%
   filter(if_any(all_of(action_cols), ~ !is.na(.) & . != 0)) %>%
   tally(name = "rows_any_action_nonzero")
 
-#breaking it down further
-#percentage of complaints by category (pre-permit)
+###breaking it down more ###
+
+#create complaint categories
 pre_code_categories <- c("pre_code_admin", "pre_code_traffic", "pre_code_nuisance", 
                          "pre_code_noise", "pre_code_alcohol", "pre_code_trash", 
                          "pre_code_building", "pre_code_foodborne")
-
 pre_health_categories <- c("pre_health_admin", "pre_health_traffic", "pre_health_nuisance", 
                            "pre_health_noise", "pre_health_alcohol", "pre_health_trash", 
                            "pre_health_building", "pre_health_foodborne")
 
-#breakdown of pre-permit code enforcement complaints
-code_totals <- complaint_data %>%
-  select(all_of(pre_code_categories)) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  pivot_longer(cols = everything(), names_to = "category", values_to = "count") %>%
-  mutate(
-    category = str_remove(category, "pre_code_"),
-    total = sum(count),
-    percent = (count / total) * 100
-  ) %>%
-  arrange(desc(percent))
+post_code_categories <- c("post_code_admin", "post_code_traffic", "post_code_nuisance", 
+                          "post_code_noise", "post_code_alcohol", "post_code_trash", 
+                          "post_code_building", "post_code_foodborne")
+post_health_categories <- c("post_health_admin", "post_health_traffic", "post_health_nuisance", 
+                            "post_health_noise", "post_health_alcohol", "post_health_trash", 
+                            "post_health_building", "post_health_foodborne")
 
-print(code_totals, n = Inf)
+# Custom y-axis labels
+y_axis_labels <- c(
+  "admin" = "Admin",
+  "traffic" = "Traffic",
+  "nuisance" = "Nuisance",
+  "noise" = "Noise",
+  "alcohol" = "Alcohol",
+  "trash" = "Trash",
+  "building" = "Building",
+  "foodborne" = "Foodborne"
+)
+
+# Function to calculate totals
+calc_totals <- function(data, categories, prefix) {
+  data %>%
+    select(all_of(categories)) %>%
+    summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+    pivot_longer(cols = everything(), names_to = "category", values_to = "count") %>%
+    mutate(
+      category = str_remove(category, prefix),
+      total = sum(count),
+      percent = (count / total) * 100
+    ) %>%
+    arrange(desc(percent))
+}
+
+# PRE-PERMIT
+pre_permit_data <- complaint_data %>%
+  filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
+
+pre_permit_code <- calc_totals(pre_permit_data, pre_code_categories, "pre_code_")
+pre_permit_health <- calc_totals(pre_permit_data, pre_health_categories, "pre_health_")
+
+cat("PRE-PERMIT CODE COMPLAINTS\n")
+print(pre_permit_code, n = Inf)
 cat("\n")
 
-#breakdown of pre-permit code enforcement complaints
-health_totals <- complaint_data %>%
-  select(all_of(pre_health_categories)) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  pivot_longer(cols = everything(), names_to = "category", values_to = "count") %>%
-  mutate(
-    category = str_remove(category, "pre_health_"),
-    total = sum(count),
-    percent = (count / total) * 100
-  ) %>%
-  arrange(desc(percent))
+cat("PRE-PERMIT HEALTH COMPLAINTS\n")
+print(pre_permit_health, n = Inf)
+cat("\n\n")
 
-print(health_totals, n = Inf)
+# POST-PERMIT
+post_permit_code <- calc_totals(pre_permit_data, post_code_categories, "post_code_")
+post_permit_health <- calc_totals(pre_permit_data, post_health_categories, "post_health_")
+
+cat("POST-PERMIT CODE COMPLAINTS\n")
+print(post_permit_code, n = Inf)
 cat("\n")
 
+cat("POST-PERMIT HEALTH COMPLAINTS\n")
+print(post_permit_health, n = Inf)
+cat("\n\n")
 
+# UNPERMITTED
+unpermitted_data <- complaint_data %>%
+  filter(permit_year == "NA" | is.na(permit_year))
 
+unpermitted_code <- calc_totals(unpermitted_data, pre_code_categories, "pre_code_")
+unpermitted_health <- calc_totals(unpermitted_data, pre_health_categories, "pre_health_")
 
+cat("UNPERMITTED CODE COMPLAINTS\n")
+print(unpermitted_code, n = Inf)
+cat("\n")
 
+cat("UNPERMITTED HEALTH COMPLAINTS\n")
+print(unpermitted_health, n = Inf)
+cat("\n\n")
 
+# Create combined summary for plotting
+all_summaries <- bind_rows(
+  pre_permit_code %>% mutate(status = "Pre-Permit", source = "Code"),
+  pre_permit_health %>% mutate(status = "Pre-Permit", source = "Health"),
+  post_permit_code %>% mutate(status = "Post-Permit", source = "Code"),
+  post_permit_health %>% mutate(status = "Post-Permit", source = "Health"),
+  unpermitted_code %>% mutate(status = "Unpermitted", source = "Code"),
+  unpermitted_health %>% mutate(status = "Unpermitted", source = "Health")
+) %>%
+  select(status, source, category, count, percent)
+
+# Code Enforcement Plot
+code_plot <- all_summaries %>%
+  filter(source == "Code") %>%
+  mutate(category_label = y_axis_labels[category]) %>%
+  ggplot(aes(x = reorder(category_label, percent), y = percent, fill = status)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Code Enforcement Complaints by Permit Status",
+    x = "Complaint Category",
+    y = "Percentage (%)",
+    fill = "Permit Status"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    legend.position = "bottom"
+  )
+
+print(code_plot)
+
+# Health Complaints Plot
+health_plot <- all_summaries %>%
+  filter(source == "Health") %>%
+  mutate(category_label = y_axis_labels[category]) %>%
+  ggplot(aes(x = reorder(category_label, percent), y = percent, fill = status)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Health Complaints by Permit Status",
+    x = "Complaint Category",
+    y = "Percentage (%)",
+    fill = "Permit Status"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    legend.position = "bottom"
+  )
+
+print(health_plot)
