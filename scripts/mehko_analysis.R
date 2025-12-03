@@ -1,5 +1,6 @@
 #load packages
 library(tidygeocoder)
+library(tidycensus)
 library(tidyverse)
 library(tigris)
 library(sf)
@@ -29,6 +30,112 @@ print(total_complaints, width = Inf)
 
 total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
 cat("Total unique complaints:", total, "\n")
+
+### geocode data ###
+#geocode addresses
+complaint_data <- complaint_data %>%
+  unite("address", address_street, address_city, address_zip, 
+        sep = ", ", remove = FALSE, na.rm = TRUE) %>%
+  geocode(address = address, method = "census", full_results = TRUE) %>%
+  rename(id = `id...1`) %>%
+  select(-`id...87`)
+
+# get CA tract urbanity classification
+ca_tracts <- get_decennial(
+  geography = "tract",
+  variables = "P1_001N",
+  state = "CA",
+  year = 2020,
+  geometry = TRUE
+) %>%
+  st_transform(4326) %>%
+  mutate(
+    area_sqmi = as.numeric(st_area(geometry)) / 2.59e6,
+    pop_density = value / area_sqmi,
+    urbanity = case_when(
+      pop_density >= 5000 ~ "Urban",
+      pop_density >= 1000 ~ "Suburban",
+      pop_density >= 100 ~ "Town",
+      TRUE ~ "Rural"
+    )
+  ) %>%
+  select(GEOID, urbanity, pop_density, geometry)
+
+#spatial join to assign urbanity
+complaint_sf <- complaint_data %>%
+  filter(!is.na(lat), !is.na(long)) %>%
+  st_as_sf(coords = c("long", "lat"), crs = 4326)
+
+complaint_joined <- st_join(complaint_sf, ca_tracts) %>%
+  st_drop_geometry() %>%
+  select(id, urbanity, pop_density)
+
+#add urbanity back to main dataset
+complaint_data <- complaint_data %>%
+  left_join(complaint_joined, by = "id")
+
+# summary
+table(complaint_data$urbanity, useNA = "ifany")
+
+#download and read in NCES locales
+nces_locale <- st_read("C:/Users/wvg1/Downloads/edge_locale24_nces_CA/edge_locale24_nces_CA.shp") %>%
+  st_make_valid() %>% 
+  st_transform(4326)
+
+#spatial join complaint data to NCES locales
+complaint_sf <- complaint_data %>%
+  filter(!is.na(lat), !is.na(long)) %>%
+  st_as_sf(coords = c("long", "lat"), crs = 4326)
+
+#NCES locale code decoder
+nces_decoder <- tibble(
+  LOCALE = c("11", "12", "13", "21", "22", "23", "31", "32", "33", "41", "42", "43"),
+  locale_name = c(
+    "City-Large", "City-Midsize", "City-Small",
+    "Suburb-Large", "Suburb-Midsize", "Suburb-Small",
+    "Town-Fringe", "Town-Distant", "Town-Remote",
+    "Rural-Fringe", "Rural-Distant", "Rural-Remote"
+  )
+)
+
+complaint_nces <- st_join(complaint_sf, nces_locale) %>%
+  st_drop_geometry() %>%
+  select(id, LOCALE) %>%
+  left_join(nces_decoder, by = "LOCALE")
+
+#add NCES locale back to main dataset
+complaint_data <- complaint_data %>%
+  left_join(complaint_nces %>% select(id, LOCALE, locale_name), by = "id")
+
+#compare Census urbanity vs NCES locale
+table(complaint_data$urbanity, complaint_data$locale_name, useNA = "ifany")
+
+head(complaint_data %>% select(id, juris, address_city, urbanity, locale_name, pop_density))
+
+#permits by NCES locale
+permit_by_locale <- complaint_data %>%
+  filter(!is.na(locale_name), permit_year != "NA") %>%
+  group_by(locale_name) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(
+    pct = round(n / sum(n) * 100, 1),
+    label = paste0(locale_name, " (", n, ", ", pct, "%)")
+  ) %>%
+  arrange(desc(n))
+
+print(permit_by_locale)
+
+#summary text with percentages
+total_permits <- sum(permit_by_locale$n)
+
+cat("Total permits:", total_permits, "\n\n")
+cat("Permit distribution by NCES locale:\n")
+for (i in 1:nrow(permit_by_locale)) {
+  cat(sprintf("  %s: %d (%.1f%%)\n", 
+              permit_by_locale$locale_name[i], 
+              permit_by_locale$n[i], 
+              permit_by_locale$pct[i]))
+}
 
 ### total unique complaints for mehko addresses ###
 #sum complaints for mehkos
