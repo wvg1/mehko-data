@@ -32,13 +32,78 @@ total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
 cat("Total unique complaints:", total, "\n")
 
 ### geocode data ###
-#geocode addresses
+#create address field
 complaint_data <- complaint_data %>%
   unite("address", address_street, address_city, address_zip, 
-        sep = ", ", remove = FALSE, na.rm = TRUE) %>%
+        sep = ", ", remove = FALSE, na.rm = TRUE)
+
+# census geocoding
+complaint_data <- complaint_data %>%
   geocode(address = address, method = "census", full_results = TRUE) %>%
   rename(id = `id...1`) %>%
   select(-`id...87`)
+
+census_matched <- sum(!is.na(complaint_data$lat))
+
+# OSM fallback for failed addresses
+osm_needed <- complaint_data %>%
+  filter(is.na(lat) | is.na(long)) %>%
+  filter(address != "")
+
+if (nrow(osm_needed) > 0) {
+  
+  osm_results <- osm_needed %>%
+    geocode(address = address, method = "osm", full_results = TRUE, verbose = FALSE)
+  
+  # get OSM lat/long columns (may be renamed)
+  lat_col_osm <- names(osm_results)[grep("^lat", names(osm_results))] %>% tail(1)
+  long_col_osm <- names(osm_results)[grep("^long", names(osm_results))] %>% tail(1)
+  
+  osm_matched <- sum(!is.na(osm_results[[lat_col_osm]]))
+  cat("OSM matched:", osm_matched, "of", nrow(osm_needed), "\n")
+  
+  # update complaint_data with OSM results
+  if (osm_matched > 0) {
+    complaint_data <- complaint_data %>%
+      rows_update(
+        osm_results %>%
+          filter(!is.na(!!sym(lat_col_osm))) %>%
+          select(id, !!sym(lat_col_osm), !!sym(long_col_osm)) %>%
+          rename(lat = !!sym(lat_col_osm), long = !!sym(long_col_osm)),
+        by = "id"
+      )
+  }
+}
+
+# arcGIS fallback for still-failed addresses
+arcgis_needed <- complaint_data %>%
+  filter(is.na(lat) | is.na(long)) %>%
+  filter(address != "")
+
+if (nrow(arcgis_needed) > 0) {
+  
+  arcgis_results <- arcgis_needed %>%
+    geocode(address = address, method = "arcgis", full_results = TRUE, verbose = FALSE)
+  
+  # get ArcGIS lat/long columns (may be renamed)
+  lat_col_arcgis <- names(arcgis_results)[grep("^lat", names(arcgis_results))] %>% tail(1)
+  long_col_arcgis <- names(arcgis_results)[grep("^long", names(arcgis_results))] %>% tail(1)
+  
+  arcgis_matched <- sum(!is.na(arcgis_results[[lat_col_arcgis]]))
+  cat("ArcGIS matched:", arcgis_matched, "of", nrow(arcgis_needed), "\n")
+  
+  # update complaint_data with ArcGIS results
+  if (arcgis_matched > 0) {
+    complaint_data <- complaint_data %>%
+      rows_update(
+        arcgis_results %>%
+          filter(!is.na(!!sym(lat_col_arcgis))) %>%
+          select(id, !!sym(lat_col_arcgis), !!sym(long_col_arcgis)) %>%
+          rename(lat = !!sym(lat_col_arcgis), long = !!sym(long_col_arcgis)),
+        by = "id"
+      )
+  }
+}
 
 # get CA tract urbanity classification
 ca_tracts <- get_decennial(
