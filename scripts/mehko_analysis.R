@@ -7,6 +7,7 @@ library(sf)
 library(rlang)
 library(readxl)
 library(extrafont)
+library(treemapify)
 
 #setwd "mehko-data" and load fonts as needed with font_import()
 #make sure to update path to relevant xlsx file
@@ -32,43 +33,7 @@ print(total_complaints, width = Inf)
 total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
 print(total)
 
-#plot permit growth
-cumulative_permits <- complaint_data %>%
-  filter(!is.na(permit_year), permit_year != "NA") %>%
-  mutate(permit_year = as.numeric(permit_year)) %>%
-  filter(!is.na(permit_year)) %>%
-  group_by(permit_year) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  arrange(permit_year) %>%
-  mutate(cumulative = cumsum(n))
-
-permit_growth_plot <- cumulative_permits %>%
-  ggplot(aes(x = permit_year, y = cumulative)) +
-  geom_line(linewidth = 1, color = "#2C3E50") +
-  geom_point(size = 2.5, color = "#2C3E50") +
-  labs(
-    title = "Cumulative MEHKO Permit Growth Over Time",
-    x = "Year",
-    y = "Cumulative Number of Permits"
-  ) +
-  scale_x_continuous(breaks = seq(min(cumulative_permits$permit_year), 
-                                  max(cumulative_permits$permit_year), by = 1)) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(family = "Helvetica", face = "bold", size = 14, margin = margin(b = 10)),
-    axis.title = element_text(family = "Georgia", size = 11),
-    axis.text = element_text(family = "Georgia", size = 10),
-    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    plot.margin = margin(15, 15, 15, 15)
-  )
-
-print(permit_growth_plot)
-
 # plot cumulative permit growth by year and jurisdiction
-
 cumulative_permits_by_juris <- complaint_data %>%
   filter(!is.na(permit_year), permit_year != "NA") %>%
   mutate(permit_year = as.numeric(permit_year)) %>%
@@ -80,23 +45,47 @@ cumulative_permits_by_juris <- complaint_data %>%
   mutate(cumulative = cumsum(n)) %>%
   ungroup()
 
+# Get unique jurisdictions in order they appear
+unique_juris <- unique(cumulative_permits_by_juris$juris)
+n_juris <- length(unique_juris)
+
+# Create color palette
+color_palette <- colorRampPalette(c(
+  "#008B8B",  # Teal dark
+  "#2FA9A9",  # Teal medium
+  "#5FC2C2",  # Teal light
+  "#CC5500",  # Burnt Orange dark
+  "#E67E22",  # Burnt Orange medium
+  "#F39C12",  # Burnt Orange light
+  "#B91930",  # Deeper Red dark
+  "#C41E3A",  # Deep Red dark
+  "#D4564A",  # Deep Red medium
+  "#808080",  # Gray medium
+  "#B0B0B0"   # Gray light
+))(n_juris)
+
+juris_colors <- setNames(color_palette, unique_juris)
+
+# Plot
 permit_growth_by_juris_plot <- cumulative_permits_by_juris %>%
   ggplot(aes(x = permit_year, y = cumulative, fill = juris)) +
   geom_area(alpha = 0.7, position = "stack") +
+  scale_fill_manual(values = juris_colors) +
   labs(
     title = "Figure 1: MEHKO Permits by Jurisdiction",
     x = "Year",
     y = "Cumulative Permits Issued",
-    color = NULL
+    fill = NULL
   ) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
   theme_minimal() +
   theme(
-    plot.title = element_text(family = "Helvetica", face = "bold", size = 14, margin = margin(b = 10)),
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
     axis.title = element_text(family = "Georgia", size = 11),
     axis.text = element_text(family = "Georgia", size = 10),
     legend.title = element_blank(),
     legend.text = element_text(family = "Georgia", size = 9),
+    legend.position = "right",
     panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
@@ -302,6 +291,78 @@ for (i in 1:nrow(permit_by_group)) {
               permit_by_group$n[i], 
               permit_by_group$pct[i]))
 }
+
+### plot permits by NCES locale type ###
+
+# prepare data
+permit_data_for_bars <- permit_by_locale %>%
+  mutate(
+    locale_group = case_when(
+      str_detect(locale_name, "^City") ~ "City",
+      str_detect(locale_name, "^Suburb") ~ "Suburb",
+      str_detect(locale_name, "^Town") ~ "Town",
+      str_detect(locale_name, "^Rural") ~ "Rural"
+    )
+  ) %>%
+  arrange(locale_group, desc(n))
+
+# order locale_group for x-axis
+locale_group_order <- c("City", "Suburb", "Town", "Rural")
+
+# create short labels for bars (just the size category)
+permit_data_for_bars <- permit_data_for_bars %>%
+  mutate(
+    size_label = str_remove(locale_name, "^[A-Za-z]+-"),
+    locale_group = factor(locale_group, levels = locale_group_order),
+    # Create shade mapping: Large/Fringe darkest, Midsize/Distant medium, Small/Remote lightest
+    shade_key = case_when(
+      size_label %in% c("Large", "Fringe") ~ "dark",
+      size_label %in% c("Midsize", "Distant") ~ "medium",
+      size_label %in% c("Small", "Remote") ~ "light"
+    )
+  )
+
+# create color palette with shades
+color_palette <- data.frame(
+  locale_group = rep(c("City", "Suburb", "Town", "Rural"), each = 3),
+  shade_key = rep(c("dark", "medium", "light"), 4),
+  color = c(
+    "#008B8B", "#2FA9A9", "#5FC2C2",  # City: teal shades
+    "#CC5500", "#E67E22", "#F39C12",  # Suburb: burnt orange shades
+    "#36454F", "#5A6B7D", "#8B8B7A",  # Town: slate blue shades
+    "#DAA520", "#E8B84B", "#F0CC76"   # Rural: gold shades
+  )
+)
+
+permit_data_for_bars <- permit_data_for_bars %>%
+  left_join(color_palette, by = c("locale_group", "shade_key")) %>%
+  mutate(locale_group = factor(locale_group, levels = locale_group_order))
+
+# grouped bar chart with Modern Colorful palette and shade variations
+grouped_bar_plot <- permit_data_for_bars %>%
+  ggplot(aes(x = locale_group, y = n, fill = color)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = size_label), position = position_dodge(width = 0.9), 
+            vjust = -0.5, family = "serif", size = 3) +
+  scale_fill_identity() +
+  labs(
+    title = "Figure 2: MEHKO Permits by Locale Type",
+    x = "Locale Type",
+    y = "Number of Permits"
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(grouped_bar_plot)
 
 ### total unique complaints for mehko addresses ###
 #sum complaints for mehkos
