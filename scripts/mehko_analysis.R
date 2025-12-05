@@ -202,6 +202,33 @@ for (i in 1:nrow(permit_by_locale)) {
               permit_by_locale$pct[i]))
 }
 
+# permits by locale group (city, suburb, town, rural)
+permit_by_group <- permit_by_locale %>%
+  mutate(
+    locale_group = case_when(
+      str_detect(locale_name, "^City") ~ "City",
+      str_detect(locale_name, "^Suburb") ~ "Suburb",
+      str_detect(locale_name, "^Town") ~ "Town",
+      str_detect(locale_name, "^Rural") ~ "Rural"
+    )
+  ) %>%
+  group_by(locale_group) %>%
+  summarise(
+    n = sum(n),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    pct = round(n / sum(n) * 100, 1)
+  ) %>%
+  arrange(desc(n))
+
+for (i in 1:nrow(permit_by_group)) {
+  cat(sprintf("  %s: %d (%.1f%%)\n", 
+              permit_by_group$locale_group[i], 
+              permit_by_group$n[i], 
+              permit_by_group$pct[i]))
+}
+
 ### total unique complaints for mehko addresses ###
 #sum complaints for mehkos
 mehko_complaints <- complaint_data %>%
