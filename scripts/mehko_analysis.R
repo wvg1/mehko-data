@@ -1007,3 +1007,130 @@ figure_7 <- figure_7_data %>%
   )
 
 print(figure_7)
+
+### figure 8: complaint Types Distribution by Business Status ###
+
+# define complaint type categories (including admin)
+complaint_categories <- c("traffic", "nuisance", "noise", "alcohol", "trash", "building", "foodborne", "admin")
+
+# color palette
+color_palette_complaints <- c(
+  "#808080",  # Gray medium - admin
+  "#008B8B",  # Teal dark - traffic
+  "#2FA9A9",  # Teal medium - nuisance
+  "#5FC2C2",  # Teal light - noise
+  "#CC5500",  # Burnt Orange dark - alcohol
+  "#E67E22",  # Burnt Orange medium - trash
+  "#F39C12",  # Burnt Orange light - building
+  "#B91930"   # Deep Red dark - foodborne
+)
+
+names(color_palette_complaints) <- complaint_categories
+
+# function to calculate complaint totals by type
+calc_complaint_totals <- function(data, pre_cols, post_cols = NULL) {
+  if (!is.null(post_cols)) {
+    # for permitted MEHKOs (post-permit)
+    all_cols <- c(pre_cols, post_cols)
+  } else {
+    # for never-permitted and pre-permit (only pre columns)
+    all_cols <- pre_cols
+  }
+  
+  data %>%
+    select(all_of(all_cols)) %>%
+    summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+    pivot_longer(cols = everything(), names_to = "col_name", values_to = "count") %>%
+    mutate(
+      complaint_type = case_when(
+        str_detect(col_name, "admin") ~ "admin",
+        str_detect(col_name, "traffic") ~ "traffic",
+        str_detect(col_name, "nuisance") ~ "nuisance",
+        str_detect(col_name, "noise") ~ "noise",
+        str_detect(col_name, "alcohol") ~ "alcohol",
+        str_detect(col_name, "trash") ~ "trash",
+        str_detect(col_name, "building") ~ "building",
+        str_detect(col_name, "foodborne") ~ "foodborne"
+      )
+    ) %>%
+    group_by(complaint_type) %>%
+    summarise(count = sum(count), .groups = "drop") %>%
+    arrange(factor(complaint_type, levels = complaint_categories))
+}
+
+# permitted MEHKOs (post-permit)
+pre_permit_data <- complaint_data %>%
+  filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
+
+post_cols <- c(
+  "post_code_admin", "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
+  "post_code_trash", "post_code_building", "post_code_foodborne",
+  "post_health_admin", "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
+  "post_health_trash", "post_health_building", "post_health_foodborne"
+)
+
+permitted_complaints <- calc_complaint_totals(pre_permit_data, post_cols)
+permitted_complaints$business_status <- "Permitted\nMEHKOs"
+
+# never-Permitted
+unpermitted_data <- complaint_data %>%
+  filter(permit_year == "NA" | is.na(permit_year))
+
+pre_cols <- c(
+  "pre_code_admin", "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
+  "pre_code_trash", "pre_code_building", "pre_code_foodborne",
+  "pre_health_admin", "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
+  "pre_health_trash", "pre_health_building", "pre_health_foodborne"
+)
+
+never_permitted_complaints <- calc_complaint_totals(unpermitted_data, pre_cols)
+never_permitted_complaints$business_status <- "Unpermitted"
+
+# pre-Permit MEHKOs
+pre_permit_complaints <- calc_complaint_totals(pre_permit_data, pre_cols)
+pre_permit_complaints$business_status <- "Pre-Permit\nMEHKOs"
+
+# combine all data
+all_complaints_data <- bind_rows(
+  permitted_complaints,
+  never_permitted_complaints,
+  pre_permit_complaints
+) %>%
+  mutate(
+    business_status = factor(business_status, 
+                             levels = c("Unpermitted", "Pre-Permit\nMEHKOs", 
+                                        "Permitted\nMEHKOs")),
+    complaint_type = factor(complaint_type, levels = complaint_categories)
+  )
+
+# create stacked bar chart
+complaint_types_plot <- all_complaints_data %>%
+  ggplot(aes(x = factor(business_status, levels = c("Unpermitted", "Pre-Permit\nMEHKOs", "Permitted\nMEHKOs")), 
+             y = count, fill = complaint_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = color_palette_complaints, 
+                    labels = c("traffic" = "Traffic", "nuisance" = "Nuisance", 
+                               "noise" = "Noise", "alcohol" = "Alcohol",
+                               "trash" = "Trash", "building" = "Building", 
+                               "foodborne" = "Foodborne", "admin" = "No Substantive Complaint")) +
+  labs(
+    title = "Complaint Types by Business Status",
+    x = "Business Status",
+    y = "Total Complaints",
+    fill = "Complaint Type"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    legend.text = element_text(family = "Georgia", size = 10),
+    legend.title = element_text(family = "Georgia", size = 10),
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(complaint_types_plot)
