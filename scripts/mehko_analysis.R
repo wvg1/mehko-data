@@ -6,8 +6,9 @@ library(tigris)
 library(sf)
 library(rlang)
 library(readxl)
+library(extrafont)
 
-#setwd "mehko-data"
+#setwd "mehko-data" and load fonts as needed with font_import()
 #make sure to update path to relevant xlsx file
 complaint_data <- read_excel("data/mehko_data.xlsx")
 
@@ -29,7 +30,80 @@ total_complaints <- complaint_data %>%
 print(total_complaints, width = Inf)
 
 total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
-cat("Total unique complaints:", total, "\n")
+print(total)
+
+#plot permit growth
+cumulative_permits <- complaint_data %>%
+  filter(!is.na(permit_year), permit_year != "NA") %>%
+  mutate(permit_year = as.numeric(permit_year)) %>%
+  filter(!is.na(permit_year)) %>%
+  group_by(permit_year) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  arrange(permit_year) %>%
+  mutate(cumulative = cumsum(n))
+
+permit_growth_plot <- cumulative_permits %>%
+  ggplot(aes(x = permit_year, y = cumulative)) +
+  geom_line(linewidth = 1, color = "#2C3E50") +
+  geom_point(size = 2.5, color = "#2C3E50") +
+  labs(
+    title = "Cumulative MEHKO Permit Growth Over Time",
+    x = "Year",
+    y = "Cumulative Number of Permits"
+  ) +
+  scale_x_continuous(breaks = seq(min(cumulative_permits$permit_year), 
+                                  max(cumulative_permits$permit_year), by = 1)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Helvetica", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(permit_growth_plot)
+
+# plot cumulative permit growth by year and jurisdiction
+
+cumulative_permits_by_juris <- complaint_data %>%
+  filter(!is.na(permit_year), permit_year != "NA") %>%
+  mutate(permit_year = as.numeric(permit_year)) %>%
+  filter(!is.na(permit_year)) %>%
+  group_by(permit_year, juris) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  arrange(juris, permit_year) %>%
+  group_by(juris) %>%
+  mutate(cumulative = cumsum(n)) %>%
+  ungroup()
+
+permit_growth_by_juris_plot <- cumulative_permits_by_juris %>%
+  ggplot(aes(x = permit_year, y = cumulative, fill = juris)) +
+  geom_area(alpha = 0.7, position = "stack") +
+  labs(
+    title = "Figure 1: MEHKO Permits by Jurisdiction",
+    x = "Year",
+    y = "Cumulative Permits Issued",
+    color = NULL
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Helvetica", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    legend.title = element_blank(),
+    legend.text = element_text(family = "Georgia", size = 9),
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(permit_growth_by_juris_plot)
 
 ### geocode data ###
 #create address field
@@ -447,7 +521,7 @@ y_axis_labels <- c(
   "foodborne" = "Foodborne"
 )
 
-# Function to calculate totals
+# function to calculate totals
 calc_totals <- function(data, categories, prefix) {
   data %>%
     select(all_of(categories)) %>%
@@ -461,49 +535,38 @@ calc_totals <- function(data, categories, prefix) {
     arrange(desc(percent))
 }
 
-# PRE-PERMIT
+# pre-permit
 pre_permit_data <- complaint_data %>%
   filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
 
 pre_permit_code <- calc_totals(pre_permit_data, pre_code_categories, "pre_code_")
 pre_permit_health <- calc_totals(pre_permit_data, pre_health_categories, "pre_health_")
 
-cat("PRE-PERMIT CODE COMPLAINTS\n")
 print(pre_permit_code, n = Inf)
-cat("\n")
 
-cat("PRE-PERMIT HEALTH COMPLAINTS\n")
 print(pre_permit_health, n = Inf)
-cat("\n\n")
 
-# POST-PERMIT
+
+# post-permit
 post_permit_code <- calc_totals(pre_permit_data, post_code_categories, "post_code_")
 post_permit_health <- calc_totals(pre_permit_data, post_health_categories, "post_health_")
 
-cat("POST-PERMIT CODE COMPLAINTS\n")
 print(post_permit_code, n = Inf)
-cat("\n")
 
-cat("POST-PERMIT HEALTH COMPLAINTS\n")
 print(post_permit_health, n = Inf)
-cat("\n\n")
 
-# UNPERMITTED
+# unpermitted
 unpermitted_data <- complaint_data %>%
   filter(permit_year == "NA" | is.na(permit_year))
 
 unpermitted_code <- calc_totals(unpermitted_data, pre_code_categories, "pre_code_")
 unpermitted_health <- calc_totals(unpermitted_data, pre_health_categories, "pre_health_")
 
-cat("UNPERMITTED CODE COMPLAINTS\n")
 print(unpermitted_code, n = Inf)
-cat("\n")
 
-cat("UNPERMITTED HEALTH COMPLAINTS\n")
 print(unpermitted_health, n = Inf)
-cat("\n\n")
 
-# Create combined summary for plotting
+# create combined summary for plotting
 all_summaries <- bind_rows(
   pre_permit_code %>% mutate(status = "Pre-Permit", source = "Code"),
   pre_permit_health %>% mutate(status = "Pre-Permit", source = "Health"),
@@ -514,7 +577,7 @@ all_summaries <- bind_rows(
 ) %>%
   select(status, source, category, count, percent)
 
-# Code Enforcement Plot
+# code enforcement plot
 code_plot <- all_summaries %>%
   filter(source == "Code") %>%
   mutate(category_label = y_axis_labels[category]) %>%
@@ -535,7 +598,7 @@ code_plot <- all_summaries %>%
 
 print(code_plot)
 
-# Health Complaints Plot
+# health complaints plot
 health_plot <- all_summaries %>%
   filter(source == "Health") %>%
   mutate(category_label = y_axis_labels[category]) %>%
