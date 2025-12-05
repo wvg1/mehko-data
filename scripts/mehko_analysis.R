@@ -679,3 +679,155 @@ health_plot <- all_summaries %>%
   )
 
 print(health_plot)
+
+### charts from survey data ###
+# create dataframe with CA businesses and MEHKO data (race)
+figure_3_data <- tibble(
+  ethnicity = c("Asian", "Black", "Latino / Hispanic", "White", "Something else"),
+  `CA Businesses` = c(23, 2, 14, 61, 1),
+  MEHKOs = c(26, 16, 28, 28, 9)
+)
+
+# color palette from the MEHKO code (teal and burnt orange)
+colors_figure_3 <- c(
+  "CA Businesses" = "#008B8B",   # Teal dark
+  "MEHKOs" = "#CC5500"           # Burnt Orange dark
+)
+
+# reshape data for plotting
+business_long <- figure_3_data %>%
+  pivot_longer(
+    cols = -ethnicity,
+    names_to = "business_type",
+    values_to = "count"
+  )
+
+#create bar chart
+figure_3 <- business_long %>%
+  filter(!is.na(count)) %>%
+  ggplot(aes(x = ethnicity, y = count, fill = business_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = colors_figure_3) +
+  labs(
+    title = "Figure 3: Race/Ethnicity of Business Owners",
+    x = "Race/Ethnicity",
+    y = "% of business owners",
+    fill = NULL
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(family = "Georgia", size = 10),
+    legend.position = "right",
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(figure_3)
+
+### figure 4: gender of business owners ###
+# create dataframe with CA businesses and MEHKO data (race)
+figure_4_data <- tibble(
+  gender = c("Male", "Female"),
+  `CA Businesses` = c(75.6,37.6),
+  MEHKOs = c(28,69)
+)
+
+# color palette from the MEHKO code (teal and burnt orange)
+colors_figure_4 <- c(
+  "CA Businesses" = "#008B8B",   # Teal dark
+  "MEHKOs" = "#CC5500"           # Burnt Orange dark
+)
+
+# reshape data for plotting
+business_long <- figure_4_data %>%
+  pivot_longer(
+    cols = -gender,
+    names_to = "business_type",
+    values_to = "pct"
+  )
+
+#create bar chart
+figure_4 <- business_long %>%
+  filter(!is.na(count)) %>%
+  ggplot(aes(x = gender, y = pct, fill = business_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = colors_figure_3) +
+  labs(
+    title = "Figure 4: Gender of Business Owners",
+    x = "Gender",
+    y = "% of business owners",
+    fill = NULL
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(family = "Georgia", size = 10),
+    legend.position = "right",
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(figure_4)
+
+### figure 5: survey responses
+# create dataframe with CA businesses and MEHKO data (race)
+figure_5_data <- tibble(
+  survey_questions = c("Male", "Female"),
+  `CA Businesses` = c(75.6,37.6)
+)
+
+# color palette from the MEHKO code (teal and burnt orange)
+colors_figure_4 <- c(
+  "CA Businesses" = "#008B8B",   # Teal dark
+  "MEHKOs" = "#CC5500"           # Burnt Orange dark
+)
+
+# reshape data for plotting
+business_long <- figure_4_data %>%
+  pivot_longer(
+    cols = -ethnicity,
+    names_to = "business_type",
+    values_to = "count"
+  )
+
+#create bar chart
+figure_4 <- business_long %>%
+  filter(!is.na(count)) %>%
+  ggplot(aes(x = ethnicity, y = count, fill = business_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = colors_figure_3) +
+  labs(
+    title = "Figure 4: Gender of Business Owners",
+    x = "Gender",
+    y = "% of business owners",
+    fill = NULL
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(family = "Georgia", size = 10),
+    legend.position = "right",
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(figure_4)
