@@ -66,7 +66,7 @@ color_palette <- colorRampPalette(c(
 
 juris_colors <- setNames(color_palette, unique_juris)
 
-# Plot
+# plot
 permit_growth_by_juris_plot <- cumulative_permits_by_juris %>%
   ggplot(aes(x = permit_year, y = cumulative, fill = juris)) +
   geom_area(alpha = 0.7, position = "stack") +
@@ -167,6 +167,9 @@ if (nrow(arcgis_needed) > 0) {
       )
   }
 }
+
+#save geocoded data
+saveRDS(complaint_data, "data/complaint_data_with_geocodes.rds")
 
 # get CA tract urbanity classification
 ca_tracts <- get_decennial(
@@ -782,37 +785,211 @@ figure_4 <- business_long %>%
 
 print(figure_4)
 
-### figure 5: survey responses
-# create dataframe with CA businesses and MEHKO data (race)
+### figure 5: survey responses ###
+# create dataframe with benefits
 figure_5_data <- tibble(
-  survey_questions = c("Male", "Female"),
-  `CA Businesses` = c(75.6,37.6)
+  survey_questions = c("Community connections,\ncustomer relationships",
+                       "Flexibility and\nwork-life balance",
+                       "Low startup costs,\nfinancial benefits",
+                       "Passion,creative\nfulfillment",
+                       "Skill development,\nentrepreneurial experience"),
+  survey_responses = c(26, 25, 17, 12, 10)
 )
 
-# color palette from the MEHKO code (teal and burnt orange)
-colors_figure_4 <- c(
-  "CA Businesses" = "#008B8B",   # Teal dark
-  "MEHKOs" = "#CC5500"           # Burnt Orange dark
+# create plot
+figure_5_data %>%
+  ggplot(aes(x = fct_reorder(survey_questions, survey_responses, .desc = TRUE), 
+             y = survey_responses, 
+             fill = survey_responses)) +
+  geom_col() +
+  scale_fill_gradient(low = "#FFE5CC", high = "#CC5500") +
+  labs(title = "Figure 5: Benefits of MEHKOs",
+       subtitle = "'In 2-3 sentences, what have been the biggest benefits to you of your MEHKO business?'",
+       x = "Responses",
+       y = "% of Respondents",
+       fill = "Respondents (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, family = "Georgia"),
+        axis.text.y = element_text(family = "Georgia"),
+        axis.title = element_text(family = "Georgia"),
+        plot.title = element_text(face = "bold", size = 14, family = "Arial"),
+        plot.subtitle = element_text(size = 10, color = "gray60", family = "Arial"),
+        legend.text = element_text(family = "Georgia"),
+        legend.title = element_text(family = "Georgia"),
+        legend.title.align = 0.5)
+
+### figure 6: survey responses ###
+# create dataframe with benefits
+figure_6_data <- tibble(
+  survey_questions = c("Finding customers",
+                       "Cost of a MEHKO permit",
+                       "Taxes for your MEHKO business",
+                       "Building a brand",
+                       "Knowing how to get started",
+                       "Creating and pricing a menu"),
+  survey_responses = c(79, 60, 57, 55, 51, 46)
 )
 
-# reshape data for plotting
-business_long <- figure_4_data %>%
-  pivot_longer(
-    cols = -ethnicity,
-    names_to = "business_type",
-    values_to = "count"
+# create plot
+figure_6_data %>%
+  ggplot(aes(x = fct_reorder(survey_questions, survey_responses, .desc = TRUE), 
+             y = survey_responses, 
+             fill = survey_responses)) +
+  geom_col() +
+  scale_fill_gradient(low = "#FFE5CC", high = "#CC5500") +
+  labs(title = "Figure 6: Common challenges",
+       subtitle = "",
+       x = "Challenges",
+       y = "% of Respondents",
+       fill = "Respondents (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, family = "Georgia"),
+        axis.text.y = element_text(family = "Georgia"),
+        axis.title = element_text(family = "Georgia"),
+        plot.title = element_text(face = "bold", size = 14, family = "Arial"),
+        plot.subtitle = element_text(size = 10, color = "gray60", family = "Arial"),
+        legend.text = element_text(family = "Georgia"),
+        legend.title = element_text(family = "Georgia"),
+        legend.title.align = 0.5)
+
+### figure 7: Community Impact Complaints ###
+
+# define complaint and action columns
+all_complaint_cols <- c(
+  "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
+  "pre_code_trash", "pre_code_building", "pre_code_foodborne",
+  "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
+  "pre_health_trash", "pre_health_building", "pre_health_foodborne",
+  "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
+  "post_code_trash", "post_code_building", "post_code_foodborne",
+  "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
+  "post_health_trash", "post_health_building", "post_health_foodborne"
+)
+
+all_action_cols <- c(
+  "pre_code_traffic_actions", "pre_code_nuisance_actions", "pre_code_noise_actions",
+  "pre_code_alcohol_actions", "pre_code_trash_actions", "pre_code_building_actions",
+  "pre_code_foodborne_actions",
+  "pre_health_traffic_actions", "pre_health_nuisance_actions", "pre_health_noise_actions",
+  "pre_health_alcohol_actions", "pre_health_trash_actions", "pre_health_building_actions",
+  "pre_health_foodborne_actions",
+  "post_code_traffic_actions", "post_code_nuisance_actions", "post_code_noise_actions",
+  "post_code_alcohol_actions", "post_code_trash_actions", "post_code_building_actions",
+  "post_code_foodborne_actions",
+  "post_health_traffic_actions", "post_health_nuisance_actions", "post_health_noise_actions",
+  "post_health_alcohol_actions", "post_health_trash_actions", "post_health_building_actions",
+  "post_health_foodborne_actions"
+)
+
+# calculate totals for each group
+# unpermitted
+unpermitted_complaints_total <- complaint_data %>%
+  filter(permit_year == "NA" | is.na(permit_year)) %>%
+  select(all_of(all_complaint_cols)) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+unpermitted_actions_total <- complaint_data %>%
+  filter(permit_year == "NA" | is.na(permit_year)) %>%
+  select(all_of(all_action_cols)) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+# pre-permit MEHKOs
+pre_permit_data <- complaint_data %>%
+  filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
+
+pre_permit_complaints_total <- pre_permit_data %>%
+  select(all_of(c(
+    "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
+    "pre_code_trash", "pre_code_building", "pre_code_foodborne",
+    "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
+    "pre_health_trash", "pre_health_building", "pre_health_foodborne"
+  ))) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+pre_permit_actions_total <- pre_permit_data %>%
+  select(all_of(c(
+    "pre_code_traffic_actions", "pre_code_nuisance_actions", "pre_code_noise_actions",
+    "pre_code_alcohol_actions", "pre_code_trash_actions", "pre_code_building_actions",
+    "pre_code_foodborne_actions",
+    "pre_health_traffic_actions", "pre_health_nuisance_actions", "pre_health_noise_actions",
+    "pre_health_alcohol_actions", "pre_health_trash_actions", "pre_health_building_actions",
+    "pre_health_foodborne_actions"
+  ))) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+# post-permit MEHKOs
+post_permit_complaints_total <- pre_permit_data %>%
+  select(all_of(c(
+    "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
+    "post_code_trash", "post_code_building", "post_code_foodborne",
+    "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
+    "post_health_trash", "post_health_building", "post_health_foodborne"
+  ))) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+post_permit_actions_total <- pre_permit_data %>%
+  select(all_of(c(
+    "post_code_traffic_actions", "post_code_nuisance_actions", "post_code_noise_actions",
+    "post_code_alcohol_actions", "post_code_trash_actions", "post_code_building_actions",
+    "post_code_foodborne_actions",
+    "post_health_traffic_actions", "post_health_nuisance_actions", "post_health_noise_actions",
+    "post_health_alcohol_actions", "post_health_trash_actions", "post_health_building_actions",
+    "post_health_foodborne_actions"
+  ))) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+# create dataframe for plotting
+figure_7_data <- tibble(
+  business_type = c("Unpermitted", "Unpermitted", 
+                    "Pre-Permit MEHKOs", "Pre-Permit MEHKOs",
+                    "Permitted MEHKOs", "Permitted MEHKOs"),
+  complaint_type = c("Complaints", "Actions",
+                     "Complaints", "Actions",
+                     "Complaints", "Actions"),
+  count = c(unpermitted_complaints_total, unpermitted_actions_total,
+            pre_permit_complaints_total, pre_permit_actions_total,
+            post_permit_complaints_total, post_permit_actions_total)
+)
+
+# create color palette with light/dark shades
+color_palette_fig7 <- tibble(
+  business_type = c("Unpermitted", "Unpermitted",
+                    "Pre-Permit MEHKOs", "Pre-Permit MEHKOs",
+                    "Permitted MEHKOs", "Permitted MEHKOs"),
+  complaint_type = c("Complaints", "Actions",
+                     "Complaints", "Actions",
+                     "Complaints", "Actions"),
+  color = c(
+    "#F39C12", "#CC5500",
+    "#F39C12", "#CC5500",
+    "#F39C12", "#CC5500"
   )
+)
 
-#create bar chart
-figure_4 <- business_long %>%
-  filter(!is.na(count)) %>%
-  ggplot(aes(x = ethnicity, y = count, fill = business_type)) +
+figure_7_data <- figure_7_data %>%
+  left_join(color_palette_fig7, by = c("business_type", "complaint_type")) %>%
+  mutate(complaint_type = factor(complaint_type, levels = c("Complaints", "Actions")))
+
+# create grouped bar chart
+figure_7 <- figure_7_data %>%
+  ggplot(aes(x = factor(business_type, levels = c("Unpermitted", "Pre-Permit MEHKOs", "Permitted MEHKOs")),
+             y = count,
+             fill = color,
+             group = complaint_type)) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = colors_figure_3) +
+  geom_text(aes(label = complaint_type), position = position_dodge(width = 0.9),
+            vjust = -0.5, family = "Georgia", size = 3) +
+  scale_fill_identity() +
   labs(
-    title = "Figure 4: Gender of Business Owners",
-    x = "Gender",
-    y = "% of business owners",
+    title = "Figure 7: Community Impact Complaints and Agency Actions",
+    x = "Business Type",
+    y = "Count",
     fill = NULL
   ) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
@@ -820,14 +997,13 @@ figure_4 <- business_long %>%
   theme(
     plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
     axis.title = element_text(family = "Georgia", size = 11),
+    axis.title.x = element_text(margin = margin(t = 15)),
     axis.text = element_text(family = "Georgia", size = 10),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.text = element_text(family = "Georgia", size = 10),
-    legend.position = "right",
+    legend.position = "none",
     panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     plot.margin = margin(15, 15, 15, 15)
   )
 
-print(figure_4)
+print(figure_7)
