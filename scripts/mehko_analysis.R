@@ -77,14 +77,16 @@ permit_growth_by_juris_plot <- cumulative_permits_by_juris %>%
     y = "Cumulative Permits Issued",
     fill = NULL
   ) +
+  scale_x_continuous(limits = c(NA, 2024), expand = expansion(mult = c(0.01, 0))) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
   theme_minimal() +
   theme(
     plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
-    axis.title = element_text(family = "Georgia", size = 11),
-    axis.text = element_text(family = "Georgia", size = 10),
+    axis.title.x = element_text(family = "Source Serif 4", size = 11),
+    axis.title.y = element_text(family = "Source Serif 4", size = 11, margin = margin(r = 10)),
+    axis.text = element_text(family = "Source Serif 4", size = 10),
     legend.title = element_blank(),
-    legend.text = element_text(family = "Georgia", size = 9),
+    legend.text = element_text(family = "Source Serif 4", size = 9),
     legend.position = "right",
     panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
     panel.grid.minor = element_blank(),
@@ -93,6 +95,15 @@ permit_growth_by_juris_plot <- cumulative_permits_by_juris %>%
   )
 
 print(permit_growth_by_juris_plot)
+
+#save plot to folder
+ggsave("plots/figure1_permits.png", 
+       plot = permit_growth_by_juris_plot,
+       width = 8, 
+       height = 6, 
+       dpi = 300,
+       type = "cairo",
+       bg = "white")
 
 ### geocode data ###
 #create address field
