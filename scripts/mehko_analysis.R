@@ -6,15 +6,18 @@ library(tigris)
 library(sf)
 library(rlang)
 library(readxl)
-library(extrafont)
+library(showtext)
 library(treemapify)
 
-#setwd "mehko-data" and load fonts as needed with font_import()
+#setwd "mehko-data" and download Source Serif 4 font if needed
 #make sure to update path to relevant xlsx file
 complaint_data <- read_excel("data/mehko_data.xlsx")
 
-#load fonts
-font_import()
+#load Source Serif and Arial fonts if needed
+font_add("Source Serif 4", 
+         regular = "fonts/SourceSerif4-Regular.ttf")
+font_add("Arial", regular = "C:/Windows/Fonts/arial.ttf")
+showtext_auto()
 
 #transform numeric variables to integer
 complaint_data <- complaint_data %>%
@@ -36,7 +39,7 @@ print(total_complaints, width = Inf)
 total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
 print(total)
 
-### figure 1: Community Impact Complaints ###
+### figure 2: Community Impact Complaints ###
 
 # define complaint and action columns
 all_complaint_cols <- c(
@@ -103,7 +106,7 @@ mehko_actions_total <- mehko_data %>%
   unlist() %>% sum()
 
 # create dataframe for plotting
-figure_1_data <- tibble(
+figure_2_data <- tibble(
   business_type = c("Unpermitted", "Unpermitted", 
                     "MEHKOs", "MEHKOs"),
   complaint_type = c("Complaints", "Actions",
@@ -113,7 +116,7 @@ figure_1_data <- tibble(
 )
 
 # create color palette with strong contrast between complaints and actions
-color_palette_fig1 <- tibble(
+color_palette_fig2 <- tibble(
   business_type = c("Unpermitted", "Unpermitted",
                     "MEHKOs", "MEHKOs"),
   complaint_type = c("Complaints", "Actions",
@@ -124,22 +127,22 @@ color_palette_fig1 <- tibble(
   )
 )
 
-figure_1_data <- figure_1_data %>%
-  left_join(color_palette_fig1, by = c("business_type", "complaint_type")) %>%
+figure_2_data <- figure_2_data %>%
+  left_join(color_palette_fig2, by = c("business_type", "complaint_type")) %>%
   mutate(complaint_type = factor(complaint_type, levels = c("Complaints", "Actions")))
 
 # create grouped bar chart
-figure_1 <- figure_1_data %>%
+figure_2 <- figure_2_data %>%
   ggplot(aes(x = factor(business_type, levels = c("Unpermitted", "MEHKOs")),
              y = count,
              fill = color,
              group = complaint_type)) +
   geom_col(position = "dodge") +
   geom_text(aes(label = complaint_type), position = position_dodge(width = 0.9),
-            vjust = -0.5, family = "Source Serif 4", size = 3) +
+            vjust = -0.5, family = "Source Serif 4", size = 5) +
   scale_fill_identity() +
   labs(
-    title = "Figure 1: Community Impact Complaints and Agency Actions",
+    title = "Figure 2: Community Impact Complaints and Agency Actions",
     x = "Business Type",
     y = "Count",
     fill = NULL
@@ -147,28 +150,28 @@ figure_1 <- figure_1_data %>%
   scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
   theme_minimal() +
   theme(
-    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
-    axis.title = element_text(family = "Source Serif 4", size = 11),
+    plot.title = element_text(family = "Arial", face = "bold", size = 24, margin = margin(b = 10)),
+    axis.title = element_text(family = "Source Serif 4", size = 18),
     axis.title.x = element_text(margin = margin(t = 15)),
-    axis.text = element_text(family = "Source Serif 4", size = 10),
+    axis.text = element_text(family = "Source Serif 4", size = 18),
     legend.position = "none",
-    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 0.3),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     plot.margin = margin(15, 15, 15, 15)
   )
 
-print(figure_1)
+print(figure_2)
 
-ggsave("plots/figure1.png", 
-       plot = figure_1,
+ggsave("plots/figure2.png", 
+       plot = figure_2,
        width = 8, 
        height = 6, 
        dpi = 300,
        type = "cairo",
        bg = "white")
 
-### figure 2: complaint Types Distribution by Business Status ###
+### figure 3: complaint Types Distribution by Business Status ###
 
 # define complaint type categories (including admin)
 complaint_categories <- c("traffic", "nuisance", "noise", "alcohol", "trash", "building", "foodborne", "admin")
@@ -257,7 +260,7 @@ all_complaints_data <- bind_rows(
   )
 
 # create stacked bar chart
-figure_2 <- all_complaints_data %>%
+figure_3 <- all_complaints_data %>%
   ggplot(aes(x = business_status, 
              y = count, fill = complaint_type)) +
   geom_col(position = "stack") +
@@ -267,29 +270,29 @@ figure_2 <- all_complaints_data %>%
                                "trash" = "Trash", "building" = "Building", 
                                "foodborne" = "Foodborne", "admin" = "No Substantive Complaint")) +
   labs(
-    title = "Figure 2: Complaint Types by Business Status",
+    title = "Figure 3: Complaint Types by Business Status",
     x = "Business Status",
     y = "Total Complaints",
     fill = "Complaint Type"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
-    axis.title = element_text(family = "Georgia", size = 11),
-    axis.text = element_text(family = "Georgia", size = 10),
+    plot.title = element_text(family = "Arial", face = "bold", size = 24, margin = margin(b = 10)),
+    axis.title = element_text(family = "Source Serif 4", size = 18),
+    axis.text = element_text(family = "Source Serif 4", size = 18),
     axis.title.x = element_text(margin = margin(t = 15)),
-    legend.text = element_text(family = "Georgia", size = 10),
-    legend.title = element_text(family = "Georgia", size = 10),
+    legend.text = element_text(family = "Source Serif 4", size = 10),
+    legend.title = element_text(family = "Source Serif 4", size = 14),
     panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     plot.margin = margin(15, 15, 15, 15)
   )
 
-print(figure_2)
+print(figure_3)
 
-ggsave("plots/figure2.png", 
-       plot = figure_2,
+ggsave("plots/figure3.png", 
+       plot = figure_3,
        width = 8, 
        height = 6, 
        dpi = 300,
@@ -1253,3 +1256,65 @@ complaint_types_plot <- all_complaints_data %>%
   )
 
 print(complaint_types_plot)
+
+
+### figure x: immigrant vs non immigrant challenges ###
+# create dataframe with CA businesses and MEHKO data (race)
+figure_x_data <- tibble(
+  operator_type = c("Foreign-born", "U.S. born"),
+  `Finding\ncustomers` = c(86, 73),
+  `Permit costs` = c(66, 49),
+  `Knowing how to \nget started` = c(65, 47)
+)
+
+# color palette from the MEHKO code (teal and burnt orange)
+colors_figure_4 <- c(
+  "CA Businesses" = "#008B8B",   # Teal dark
+  "MEHKOs" = "#CC5500"           # Burnt Orange dark
+)
+
+# reshape data for plotting
+figure_x_long <- figure_x_data %>%
+  pivot_longer(
+    cols = -operator_type,
+    names_to = "challenge",
+    values_to = "pct"
+  )
+
+colors_figure_x <- c(
+  "Foreign-born" = "#008B8B",
+  "U.S. born"     = "#CC5500"
+)
+
+#create bar chart
+figure_x <- figure_x_long %>%
+  ggplot(aes(x = challenge, y = pct, fill = operator_type)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = pct),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5,
+            family = "Source Serif 4",
+            size = 5) +
+  scale_fill_manual(values = colors_figure_x) +
+  labs(
+    title = "Figure X: Increased Challenges for Foreign-born MEHKO Operators",
+    x = "Challenge",
+    y = "% of operators",
+    fill = NULL
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  # extra space for labels
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 24, margin = margin(b = 10)),
+    axis.title = element_text(family = "Source Serif 4", size = 14),
+    axis.text = element_text(family = "Source Serif 4", size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(family = "Source Serif 4", size = 12),
+    legend.position = "right",
+    panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(figure_x)
