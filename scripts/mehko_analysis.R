@@ -297,7 +297,6 @@ ggsave("plots/figure2.png",
        bg = "white")
 
 
-
 # plot cumulative permit growth by year and jurisdiction
 cumulative_permits_by_juris <- complaint_data %>%
   filter(!is.na(permit_year), permit_year != "NA") %>%
