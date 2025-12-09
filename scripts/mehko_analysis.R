@@ -13,6 +13,9 @@ library(treemapify)
 #make sure to update path to relevant xlsx file
 complaint_data <- read_excel("data/mehko_data.xlsx")
 
+#load fonts
+font_import()
+
 #transform numeric variables to integer
 complaint_data <- complaint_data %>%
   mutate(across(matches("(?i)code|health"),
@@ -32,6 +35,268 @@ print(total_complaints, width = Inf)
 
 total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
 print(total)
+
+### figure 1: Community Impact Complaints ###
+
+# define complaint and action columns
+all_complaint_cols <- c(
+  "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
+  "pre_code_trash", "pre_code_building", "pre_code_foodborne",
+  "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
+  "pre_health_trash", "pre_health_building", "pre_health_foodborne",
+  "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
+  "post_code_trash", "post_code_building", "post_code_foodborne",
+  "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
+  "post_health_trash", "post_health_building", "post_health_foodborne"
+)
+
+all_action_cols <- c(
+  "pre_code_traffic_actions", "pre_code_nuisance_actions", "pre_code_noise_actions",
+  "pre_code_alcohol_actions", "pre_code_trash_actions", "pre_code_building_actions",
+  "pre_code_foodborne_actions",
+  "pre_health_traffic_actions", "pre_health_nuisance_actions", "pre_health_noise_actions",
+  "pre_health_alcohol_actions", "pre_health_trash_actions", "pre_health_building_actions",
+  "pre_health_foodborne_actions",
+  "post_code_traffic_actions", "post_code_nuisance_actions", "post_code_noise_actions",
+  "post_code_alcohol_actions", "post_code_trash_actions", "post_code_building_actions",
+  "post_code_foodborne_actions",
+  "post_health_traffic_actions", "post_health_nuisance_actions", "post_health_noise_actions",
+  "post_health_alcohol_actions", "post_health_trash_actions", "post_health_building_actions",
+  "post_health_foodborne_actions"
+)
+
+# calculate totals for unpermitted (includes never-permitted and pre-permit)
+unpermitted_complaints_total <- complaint_data %>%
+  select(all_of(all_complaint_cols)) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+unpermitted_actions_total <- complaint_data %>%
+  select(all_of(all_action_cols)) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+# MEHKOs (permitted - post-permit only)
+mehko_data <- complaint_data %>%
+  filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
+
+mehko_complaints_total <- mehko_data %>%
+  select(all_of(c(
+    "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
+    "post_code_trash", "post_code_building", "post_code_foodborne",
+    "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
+    "post_health_trash", "post_health_building", "post_health_foodborne"
+  ))) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+mehko_actions_total <- mehko_data %>%
+  select(all_of(c(
+    "post_code_traffic_actions", "post_code_nuisance_actions", "post_code_noise_actions",
+    "post_code_alcohol_actions", "post_code_trash_actions", "post_code_building_actions",
+    "post_code_foodborne_actions",
+    "post_health_traffic_actions", "post_health_nuisance_actions", "post_health_noise_actions",
+    "post_health_alcohol_actions", "post_health_trash_actions", "post_health_building_actions",
+    "post_health_foodborne_actions"
+  ))) %>%
+  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+  unlist() %>% sum()
+
+# create dataframe for plotting
+figure_1_data <- tibble(
+  business_type = c("Unpermitted", "Unpermitted", 
+                    "MEHKOs", "MEHKOs"),
+  complaint_type = c("Complaints", "Actions",
+                     "Complaints", "Actions"),
+  count = c(unpermitted_complaints_total, unpermitted_actions_total,
+            mehko_complaints_total, mehko_actions_total)
+)
+
+# create color palette with strong contrast between complaints and actions
+color_palette_fig1 <- tibble(
+  business_type = c("Unpermitted", "Unpermitted",
+                    "MEHKOs", "MEHKOs"),
+  complaint_type = c("Complaints", "Actions",
+                     "Complaints", "Actions"),
+  color = c(
+    "#008B8B", "#CC5500",  # Unpermitted: Teal (complaints), Burnt Orange (actions)
+    "#008B8B", "#CC5500"   # MEHKOs: Teal (complaints), Burnt Orange (actions)
+  )
+)
+
+figure_1_data <- figure_1_data %>%
+  left_join(color_palette_fig1, by = c("business_type", "complaint_type")) %>%
+  mutate(complaint_type = factor(complaint_type, levels = c("Complaints", "Actions")))
+
+# create grouped bar chart
+figure_1 <- figure_1_data %>%
+  ggplot(aes(x = factor(business_type, levels = c("Unpermitted", "MEHKOs")),
+             y = count,
+             fill = color,
+             group = complaint_type)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = complaint_type), position = position_dodge(width = 0.9),
+            vjust = -0.5, family = "Source Serif 4", size = 3) +
+  scale_fill_identity() +
+  labs(
+    title = "Figure 1: Community Impact Complaints and Agency Actions",
+    x = "Business Type",
+    y = "Count",
+    fill = NULL
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Source Serif 4", size = 11),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.text = element_text(family = "Source Serif 4", size = 10),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(figure_1)
+
+ggsave("plots/figure1.png", 
+       plot = figure_1,
+       width = 8, 
+       height = 6, 
+       dpi = 300,
+       type = "cairo",
+       bg = "white")
+
+### figure 2: complaint Types Distribution by Business Status ###
+
+# define complaint type categories (including admin)
+complaint_categories <- c("traffic", "nuisance", "noise", "alcohol", "trash", "building", "foodborne", "admin")
+
+# color palette
+color_palette_complaints <- c(
+  "#808080",  # Gray medium - admin
+  "#008B8B",  # Teal dark - traffic
+  "#2FA9A9",  # Teal medium - nuisance
+  "#5FC2C2",  # Teal light - noise
+  "#CC5500",  # Burnt Orange dark - alcohol
+  "#E67E22",  # Burnt Orange medium - trash
+  "#F39C12",  # Burnt Orange light - building
+  "#B91930"   # Deep Red dark - foodborne
+)
+
+names(color_palette_complaints) <- complaint_categories
+
+# function to calculate complaint totals by type
+calc_complaint_totals <- function(data, pre_cols, post_cols = NULL) {
+  if (!is.null(post_cols)) {
+    # for permitted MEHKOs (post-permit)
+    all_cols <- c(pre_cols, post_cols)
+  } else {
+    # for never-permitted and pre-permit (only pre columns)
+    all_cols <- pre_cols
+  }
+  
+  data %>%
+    select(all_of(all_cols)) %>%
+    summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
+    pivot_longer(cols = everything(), names_to = "col_name", values_to = "count") %>%
+    mutate(
+      complaint_type = case_when(
+        str_detect(col_name, "admin") ~ "admin",
+        str_detect(col_name, "traffic") ~ "traffic",
+        str_detect(col_name, "nuisance") ~ "nuisance",
+        str_detect(col_name, "noise") ~ "noise",
+        str_detect(col_name, "alcohol") ~ "alcohol",
+        str_detect(col_name, "trash") ~ "trash",
+        str_detect(col_name, "building") ~ "building",
+        str_detect(col_name, "foodborne") ~ "foodborne"
+      )
+    ) %>%
+    group_by(complaint_type) %>%
+    summarise(count = sum(count), .groups = "drop") %>%
+    arrange(factor(complaint_type, levels = complaint_categories))
+}
+
+# MEHKOs (post-permit)
+mehko_data <- complaint_data %>%
+  filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
+
+post_cols <- c(
+  "post_code_admin", "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
+  "post_code_trash", "post_code_building", "post_code_foodborne",
+  "post_health_admin", "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
+  "post_health_trash", "post_health_building", "post_health_foodborne"
+)
+
+mehko_complaints <- calc_complaint_totals(mehko_data, post_cols)
+mehko_complaints$business_status <- "MEHKOs"
+
+# Unpermitted (all - pre-permit and never-permitted combined)
+unpermitted_data <- complaint_data %>%
+  filter(permit_year == "NA" | is.na(permit_year))
+
+pre_cols <- c(
+  "pre_code_admin", "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
+  "pre_code_trash", "pre_code_building", "pre_code_foodborne",
+  "pre_health_admin", "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
+  "pre_health_trash", "pre_health_building", "pre_health_foodborne"
+)
+
+unpermitted_complaints <- calc_complaint_totals(unpermitted_data, pre_cols)
+unpermitted_complaints$business_status <- "Unpermitted"
+
+# combine all data
+all_complaints_data <- bind_rows(
+  unpermitted_complaints,
+  mehko_complaints
+) %>%
+  mutate(
+    business_status = factor(business_status, levels = c("Unpermitted", "MEHKOs")),
+    complaint_type = factor(complaint_type, levels = complaint_categories)
+  )
+
+# create stacked bar chart
+figure_2 <- all_complaints_data %>%
+  ggplot(aes(x = business_status, 
+             y = count, fill = complaint_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = color_palette_complaints, 
+                    labels = c("traffic" = "Traffic", "nuisance" = "Nuisance", 
+                               "noise" = "Noise", "alcohol" = "Alcohol",
+                               "trash" = "Trash", "building" = "Building", 
+                               "foodborne" = "Foodborne", "admin" = "No Substantive Complaint")) +
+  labs(
+    title = "Figure 2: Complaint Types by Business Status",
+    x = "Business Status",
+    y = "Total Complaints",
+    fill = "Complaint Type"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
+    axis.title = element_text(family = "Georgia", size = 11),
+    axis.text = element_text(family = "Georgia", size = 10),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    legend.text = element_text(family = "Georgia", size = 10),
+    legend.title = element_text(family = "Georgia", size = 10),
+    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(figure_2)
+
+ggsave("plots/figure2.png", 
+       plot = figure_2,
+       width = 8, 
+       height = 6, 
+       dpi = 300,
+       type = "cairo",
+       bg = "white")
+
+
 
 # plot cumulative permit growth by year and jurisdiction
 cumulative_permits_by_juris <- complaint_data %>%
@@ -862,162 +1127,6 @@ figure_6_data %>%
         legend.text = element_text(family = "Georgia"),
         legend.title = element_text(family = "Georgia"),
         legend.title.align = 0.5)
-
-### figure 7: Community Impact Complaints ###
-
-# define complaint and action columns
-all_complaint_cols <- c(
-  "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
-  "pre_code_trash", "pre_code_building", "pre_code_foodborne",
-  "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
-  "pre_health_trash", "pre_health_building", "pre_health_foodborne",
-  "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
-  "post_code_trash", "post_code_building", "post_code_foodborne",
-  "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
-  "post_health_trash", "post_health_building", "post_health_foodborne"
-)
-
-all_action_cols <- c(
-  "pre_code_traffic_actions", "pre_code_nuisance_actions", "pre_code_noise_actions",
-  "pre_code_alcohol_actions", "pre_code_trash_actions", "pre_code_building_actions",
-  "pre_code_foodborne_actions",
-  "pre_health_traffic_actions", "pre_health_nuisance_actions", "pre_health_noise_actions",
-  "pre_health_alcohol_actions", "pre_health_trash_actions", "pre_health_building_actions",
-  "pre_health_foodborne_actions",
-  "post_code_traffic_actions", "post_code_nuisance_actions", "post_code_noise_actions",
-  "post_code_alcohol_actions", "post_code_trash_actions", "post_code_building_actions",
-  "post_code_foodborne_actions",
-  "post_health_traffic_actions", "post_health_nuisance_actions", "post_health_noise_actions",
-  "post_health_alcohol_actions", "post_health_trash_actions", "post_health_building_actions",
-  "post_health_foodborne_actions"
-)
-
-# calculate totals for each group
-# unpermitted
-unpermitted_complaints_total <- complaint_data %>%
-  filter(permit_year == "NA" | is.na(permit_year)) %>%
-  select(all_of(all_complaint_cols)) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  unlist() %>% sum()
-
-unpermitted_actions_total <- complaint_data %>%
-  filter(permit_year == "NA" | is.na(permit_year)) %>%
-  select(all_of(all_action_cols)) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  unlist() %>% sum()
-
-# pre-permit MEHKOs
-pre_permit_data <- complaint_data %>%
-  filter(!is.na(permit_year) & permit_year != "Unknown" & permit_year != "NA")
-
-pre_permit_complaints_total <- pre_permit_data %>%
-  select(all_of(c(
-    "pre_code_traffic", "pre_code_nuisance", "pre_code_noise", "pre_code_alcohol",
-    "pre_code_trash", "pre_code_building", "pre_code_foodborne",
-    "pre_health_traffic", "pre_health_nuisance", "pre_health_noise", "pre_health_alcohol",
-    "pre_health_trash", "pre_health_building", "pre_health_foodborne"
-  ))) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  unlist() %>% sum()
-
-pre_permit_actions_total <- pre_permit_data %>%
-  select(all_of(c(
-    "pre_code_traffic_actions", "pre_code_nuisance_actions", "pre_code_noise_actions",
-    "pre_code_alcohol_actions", "pre_code_trash_actions", "pre_code_building_actions",
-    "pre_code_foodborne_actions",
-    "pre_health_traffic_actions", "pre_health_nuisance_actions", "pre_health_noise_actions",
-    "pre_health_alcohol_actions", "pre_health_trash_actions", "pre_health_building_actions",
-    "pre_health_foodborne_actions"
-  ))) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  unlist() %>% sum()
-
-# post-permit MEHKOs
-post_permit_complaints_total <- pre_permit_data %>%
-  select(all_of(c(
-    "post_code_traffic", "post_code_nuisance", "post_code_noise", "post_code_alcohol",
-    "post_code_trash", "post_code_building", "post_code_foodborne",
-    "post_health_traffic", "post_health_nuisance", "post_health_noise", "post_health_alcohol",
-    "post_health_trash", "post_health_building", "post_health_foodborne"
-  ))) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  unlist() %>% sum()
-
-post_permit_actions_total <- pre_permit_data %>%
-  select(all_of(c(
-    "post_code_traffic_actions", "post_code_nuisance_actions", "post_code_noise_actions",
-    "post_code_alcohol_actions", "post_code_trash_actions", "post_code_building_actions",
-    "post_code_foodborne_actions",
-    "post_health_traffic_actions", "post_health_nuisance_actions", "post_health_noise_actions",
-    "post_health_alcohol_actions", "post_health_trash_actions", "post_health_building_actions",
-    "post_health_foodborne_actions"
-  ))) %>%
-  summarise(across(everything(), ~sum(., na.rm = TRUE))) %>%
-  unlist() %>% sum()
-
-# create dataframe for plotting
-figure_7_data <- tibble(
-  business_type = c("Unpermitted", "Unpermitted", 
-                    "Pre-Permit MEHKOs", "Pre-Permit MEHKOs",
-                    "Permitted MEHKOs", "Permitted MEHKOs"),
-  complaint_type = c("Complaints", "Actions",
-                     "Complaints", "Actions",
-                     "Complaints", "Actions"),
-  count = c(unpermitted_complaints_total, unpermitted_actions_total,
-            pre_permit_complaints_total, pre_permit_actions_total,
-            post_permit_complaints_total, post_permit_actions_total)
-)
-
-# create color palette with light/dark shades
-color_palette_fig7 <- tibble(
-  business_type = c("Unpermitted", "Unpermitted",
-                    "Pre-Permit MEHKOs", "Pre-Permit MEHKOs",
-                    "Permitted MEHKOs", "Permitted MEHKOs"),
-  complaint_type = c("Complaints", "Actions",
-                     "Complaints", "Actions",
-                     "Complaints", "Actions"),
-  color = c(
-    "#F39C12", "#CC5500",
-    "#F39C12", "#CC5500",
-    "#F39C12", "#CC5500"
-  )
-)
-
-figure_7_data <- figure_7_data %>%
-  left_join(color_palette_fig7, by = c("business_type", "complaint_type")) %>%
-  mutate(complaint_type = factor(complaint_type, levels = c("Complaints", "Actions")))
-
-# create grouped bar chart
-figure_7 <- figure_7_data %>%
-  ggplot(aes(x = factor(business_type, levels = c("Unpermitted", "Pre-Permit MEHKOs", "Permitted MEHKOs")),
-             y = count,
-             fill = color,
-             group = complaint_type)) +
-  geom_col(position = "dodge") +
-  geom_text(aes(label = complaint_type), position = position_dodge(width = 0.9),
-            vjust = -0.5, family = "Georgia", size = 3) +
-  scale_fill_identity() +
-  labs(
-    title = "Figure 7: Community Impact Complaints and Agency Actions",
-    x = "Business Type",
-    y = "Count",
-    fill = NULL
-  ) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(family = "Arial", face = "bold", size = 14, margin = margin(b = 10)),
-    axis.title = element_text(family = "Georgia", size = 11),
-    axis.title.x = element_text(margin = margin(t = 15)),
-    axis.text = element_text(family = "Georgia", size = 10),
-    legend.position = "none",
-    panel.grid.major.y = element_line(color = "#E8E8E8", size = 0.3),
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    plot.margin = margin(15, 15, 15, 15)
-  )
-
-print(figure_7)
 
 ### figure 8: complaint Types Distribution by Business Status ###
 
