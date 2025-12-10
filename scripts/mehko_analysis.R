@@ -39,6 +39,15 @@ print(total_complaints, width = Inf)
 total <- total_complaints %>% unlist(use.names = FALSE) %>% sum()
 print(total)
 
+#sum of unpermitted and MEHKOs with complaints
+business_counts <- complaint_data %>%
+  summarise(
+    businesses_with_pre_complaints  = sum((unique_code_pre > 0 | unique_health_pre > 0), na.rm = TRUE),
+    businesses_with_post_complaints = sum((unique_code_post > 0 | unique_health_post > 0), na.rm = TRUE)
+  )
+
+print(business_counts, width = Inf)
+
 ### figure 2: Community Impact Complaints ###
 
 # define complaint and action columns
