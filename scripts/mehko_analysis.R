@@ -8,6 +8,7 @@ library(rlang)
 library(readxl)
 library(showtext)
 library(treemapify)
+library(ragg)
 
 #setwd "mehko-data" and download Source Serif 4 font if needed
 #make sure to update path to relevant xlsx file
@@ -314,6 +315,7 @@ print(unpermitted_health, n = Inf)
 ### figure 1 is a description of mehko permit rules ###
 
 ### figure 2: Community Impact Complaints ###
+### figure 2: Community Impact Complaints ###
 
 # define complaint and action columns
 all_complaint_cols <- c(
@@ -413,7 +415,7 @@ figure_2 <- figure_2_data %>%
              group = complaint_type)) +
   geom_col(position = "dodge") +
   geom_text(aes(label = complaint_type), position = position_dodge(width = 0.9),
-            vjust = -0.5, family = "Source Serif 4", size = 5) +
+            vjust = -0.5, family = "Source Serif 4", size = 32) +
   scale_fill_identity() +
   labs(
     title = "Figure 2: Community Impact Complaints and Agency Actions",
@@ -421,29 +423,29 @@ figure_2 <- figure_2_data %>%
     y = "Count",
     fill = NULL
   ) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme_minimal() +
   theme(
-    plot.title = element_text(family = "Arial", face = "bold", size = 24, margin = margin(b = 10)),
-    axis.title = element_text(family = "Source Serif 4", size = 18),
-    axis.title.x = element_text(margin = margin(t = 15)),
-    axis.text = element_text(family = "Source Serif 4", size = 18),
+    plot.title = element_text(family = "Arial", face = "bold", size = 150, margin = margin(b = 40)),
+    axis.title = element_text(family = "Source Serif 4", size = 120),
+    axis.title.x = element_text(margin = margin(t = 20)),
+    axis.title.y = element_text(margin = margin(t = 20)),
+    axis.text = element_text(family = "Source Serif 4", size = 90),
     legend.position = "none",
-    panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 0.3),
+    panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 1),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
-    plot.margin = margin(15, 15, 15, 15)
+    plot.margin = margin(40, 40, 40, 40)
   )
 
+agg_png("plots/figure2.png", 
+        width = 24, 
+        height = 18, 
+        units = "in", 
+        res = 300,
+        scaling = 2)
 print(figure_2)
-
-ggsave("plots/figure2.png", 
-       plot = figure_2,
-       width = 8, 
-       height = 6, 
-       dpi = 300,
-       type = "cairo",
-       bg = "white")
+dev.off()
 
 ### figure 3: complaint types for MEHKOs and unpermitted businesses ###
 
