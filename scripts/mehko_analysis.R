@@ -1053,23 +1053,23 @@ agg_png("plots/figure6.png",
 print(figure_6)
 dev.off()
 
-### figure 8: primary method of service ###
+### figure 7: primary method of service ###
 
 # data
-figure_8_data <- tibble(
+figure_7_data <- tibble(
   method = c("Takeout", "Delivery", "Dine-in"),
   pct = c(56, 31, 11)
 )
 
-# color palette: 3 distinct tones consistent with your report style
-colors_figure_8 <- c(
+# color palette
+colors_figure_7 <- c(
   "Takeout" = "#008B8B",   # teal
   "Delivery" = "#D97706",  # burnt orange
   "Dine-in"  = "#7C3AED"   # purple
 )
 
 # calculate label positions
-figure_8_data <- figure_8_data %>%
+figure_7_data <- figure_7_data %>%
   arrange(desc(method)) %>%
   mutate(
     ypos = cumsum(pct) - pct/2,
@@ -1079,7 +1079,7 @@ figure_8_data <- figure_8_data %>%
   )
 
 # create plot
-figure_8 <- ggplot(figure_8_data, aes(x = 1, y = pct, fill = method)) +
+figure_7 <- ggplot(figure_7_data, aes(x = 1, y = pct, fill = method)) +
   geom_col(width = 1, color = "white") +
   coord_polar(theta = "y") +
   geom_text(aes(x = ifelse(pct == 11, 1.15, 1),
@@ -1088,8 +1088,8 @@ figure_8 <- ggplot(figure_8_data, aes(x = 1, y = pct, fill = method)) +
             color = "white",
             family = "Source Serif 4",
             size = 60) +
-  scale_fill_manual(values = colors_figure_8) +
-  labs(title = "Figure 8: Primary Method of Service", fill = NULL) +
+  scale_fill_manual(values = colors_figure_7) +
+  labs(title = "Figure 7: Primary Method of Service", fill = NULL) +
   theme_minimal() +
   theme(
     plot.title = element_text(family = "Arial Black", face = "bold", size = 170, hjust = 0.5),
@@ -1102,28 +1102,27 @@ figure_8 <- ggplot(figure_8_data, aes(x = 1, y = pct, fill = method)) +
     plot.margin = margin(10, 40, 40, 40)
   )
 
-
 # save
-agg_png("plots/figure8_service_method.png",
+agg_png("plots/figure7_service_method.png",
         width = 24,
         height = 18,
         units = "in",
         res = 300,
         scaling = 2)
-print(figure_8)
+print(figure_7)
 dev.off()
 
-### figure 9 is the financial impact of MEHKOs graphic ###
+### figure 8 is the financial impact of MEHKOs graphic ###
 
-### figure 10: survey responses ###
+### figure 9: survey responses ###
 # create dataframe with benefits
-figure_10_data <- tibble(
+figure_9_data <- tibble(
   survey_questions = c(
     "Community connections,\ncustomer relationships",
-    "Flexibility and\nwork-life balance",
-    "Low startup costs,\nfinancial benefits",
-    "Passion, creative\nfulfillment",
-    "Skill development,\nentrepreneurial experience"
+    "Flexibility and work-life balance",
+    "Low startup costs, financial benefits",
+    "Passion, creative fulfillment",
+    "Skill development, entrepreneurial experience"
   ),
   survey_responses = c(26, 25, 17, 12, 10)
 )
@@ -1132,18 +1131,17 @@ figure_10_data <- tibble(
 bar_color <- "#CC5500"
 
 # create plot
-figure_10 <- figure_10_data %>%
+figure_9 <- figure_9_data %>%
   ggplot(aes(x = fct_reorder(survey_questions, survey_responses, .desc = TRUE),
              y = survey_responses,
              fill = survey_responses)) +  # map fill to survey_responses
   geom_col() +
-  geom_text(aes(label = survey_responses), 
-            vjust = -0.5, 
+  geom_text(aes(label = survey_responses),
             family = "Source Serif 4", 
             size = 32) +
   scale_fill_gradient(low = "#FFE5CC", high = "#CC5500") +  # light-to-dark gradient
   labs(
-    title = "Figure 10: Benefits of MEHKOs",
+    title = "Figure 9: Benefits of MEHKOs",
     subtitle = "'In 2-3 sentences, what have been the biggest benefits to you of your MEHKO business?'",
     x = NULL,
     y = "% of Respondents",
@@ -1152,118 +1150,87 @@ figure_10 <- figure_10_data %>%
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme_minimal() +
   theme(
-    plot.title = element_text(family = "Arial", face = "bold", size = 180, margin = margin(b = 40)),
-    plot.subtitle = element_text(family = "Arial", size = 140, color = "gray40", margin = margin(b = 20)),
-    axis.title.y = element_text(family = "Source Serif 4", size = 150),
-    axis.text.y = element_text(family = "Source Serif 4", size = 120),
-    axis.text.x = element_text(family = "Source Serif 4", size = 100, angle = 45, hjust = 1, lineheight = 0.8),
+    plot.title = element_text(family = "Arial Black", face = "bold", size = 180, margin = margin(b = 40), hjust = 0.5),
+    plot.subtitle = element_text(family = "Arial", size = 110, color = "gray40", margin = margin(b = 20), hjust = 0.5),
+    axis.title.y = element_text(family = "Source Serif 4", size = 120),
+    axis.text.y = element_text(family = "Source Serif 4", size = 100),
+    axis.text.x = element_text(family = "Source Serif 4", size = 100, angle = 30, vjust = 0.5),
     panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 1),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     plot.margin = margin(40, 40, 40, 40),
-    legend.text = element_text(family = "Source Serif 4", size = 120),
-    legend.title = element_text(family = "Source Serif 4", size = 140)
+    legend.text = element_text(family = "Source Serif 4", size = 100),
+    legend.title = element_text(family = "Source Serif 4", size = 120, margin = margin(b = 20))
   )
 
-
 # save plot
-agg_png("plots/figure10.png", width = 24, height = 18, units = "in", res = 300, scaling = 2)
-print(figure_10)
+agg_png("plots/figure9.png", width = 24, height = 18, units = "in", res = 300, scaling = 2)
+print(figure_9)
 dev.off()
 
-### figure 11: common challenges ###
-# create dataframe with challenges
+### figure 11: increased challenges for foreign-born MEHKO operators ###
+
+# create dataframe with operator challenges
 figure_11_data <- tibble(
-  survey_questions = c("Finding customers",
-                       "Not being able to sell at events or farmers markets",
-                       "Permit limitations on catering",
-                       "Building a brand",
-                       "Cost of a MEHKO permit",
-                       "Knowing how to get started",
-                       "Daily/weekly meal caps",
-                       "Annual revenue cap"),
-  survey_responses = c(79, 76, 73, 60, 57, 56, 54, 50)
-)
-
-# create plot
-figure_11_data %>%
-  ggplot(aes(x = fct_reorder(survey_questions, survey_responses, .desc = TRUE), 
-             y = survey_responses, 
-             fill = survey_responses)) +
-  geom_col() +
-  scale_fill_gradient(low = "#FFE5CC", high = "#CC5500") +
-  labs(title = "Figure 11: Common challenges",
-       subtitle = "",
-       x = "Challenges",
-       y = "% of Respondents",
-       fill = "Respondents (%)") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, family = "Georgia"),
-        axis.text.y = element_text(family = "Georgia"),
-        axis.title = element_text(family = "Georgia"),
-        plot.title = element_text(face = "bold", size = 14, family = "Arial"),
-        plot.subtitle = element_text(size = 10, color = "gray60", family = "Arial"),
-        legend.text = element_text(family = "Georgia"),
-        legend.title = element_text(family = "Georgia"),
-        legend.title.align = 0.5)
-
-### figure 12: immigrant vs non immigrant challenges ###
-# create dataframe with CA businesses and MEHKO data (race)
-figure_12_data <- tibble(
   operator_type = c("Foreign-born", "U.S. born"),
   `Finding\ncustomers` = c(86, 73),
-  `Permit costs` = c(66, 49),
-  `Knowing how to \nget started` = c(65, 47)
+  `Permit\ncosts` = c(66, 49),
+  `Knowing how to\nget started` = c(65, 47)
 )
 
-# color palette from the MEHKO code (teal and burnt orange)
-colors_figure_12 <- c(
-  "CA Businesses" = "#008B8B",   # Teal dark
-  "MEHKOs" = "#CC5500"           # Burnt Orange dark
+# color palette
+colors_figure_11 <- c(
+  "Foreign-born" = "#008B8B",
+  "U.S. born"     = "#CC5500"
 )
 
 # reshape data for plotting
-figure_12_long <- figure_12_data %>%
+figure_11_long <- figure_11_data %>%
   pivot_longer(
     cols = -operator_type,
     names_to = "challenge",
     values_to = "pct"
   )
 
-colors_figure_12 <- c(
-  "Foreign-born" = "#008B8B",
-  "U.S. born"     = "#CC5500"
-)
-
-#create bar chart
-figure_12 <- figure_x_long %>%
+# create bar chart
+figure_11 <- figure_11_long %>%
   ggplot(aes(x = challenge, y = pct, fill = operator_type)) +
   geom_col(position = "dodge") +
   geom_text(aes(label = pct),
             position = position_dodge(width = 0.9),
             vjust = -0.5,
             family = "Source Serif 4",
-            size = 5) +
-  scale_fill_manual(values = colors_figure_x) +
+            size = 44) +
+  scale_fill_manual(values = colors_figure_11) +
   labs(
-    title = "Figure X: Increased Challenges for Foreign-born MEHKO Operators",
+    title = "Figure 11: Increased Challenges for Foreign-born MEHKO Operators",
     x = "Challenge",
     y = "% of operators",
     fill = NULL
   ) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  # extra space for labels
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme_minimal() +
   theme(
-    plot.title = element_text(family = "Arial", face = "bold", size = 24, margin = margin(b = 10)),
-    axis.title = element_text(family = "Source Serif 4", size = 14),
-    axis.text = element_text(family = "Source Serif 4", size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.text = element_text(family = "Source Serif 4", size = 12),
+    plot.title = element_text(family = "Arial Black", face = "bold", size = 150, margin = margin(b = 40), hjust = 0.5),
+    axis.title = element_text(family = "Source Serif 4", size = 120),
+    axis.text = element_text(family = "Source Serif 4", size = 100),
+    axis.text.x = element_text(hjust = 1, margin = margin(t = 20)),
+    axis.title.x = element_text(margin = margin(t = 40)),
+    axis.title.y = element_text(margin = margin(r = 40)),
+    legend.text = element_text(family = "Source Serif 4", size = 120),
     legend.position = "right",
-    panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 0.3),
+    legend.key.spacing.y = unit(15, "pt"),
+    panel.grid.major.y = element_line(color = "#E8E8E8", linewidth = 1),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
-    plot.margin = margin(15, 15, 15, 15)
+    plot.margin = margin(40, 40, 40, 40)
   )
 
-print(figure_12)
+agg_png("plots/figure11.png", 
+        width = 24, 
+        height = 18, 
+        units = "in", 
+        res = 300,
+        scaling = 2)
+print(figure_11)
+dev.off()
